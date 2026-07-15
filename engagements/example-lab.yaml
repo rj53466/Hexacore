@@ -1,0 +1,29 @@
+# Example engagement (Brain/07 §6). Run: make engage SCOPE=engagements/example-lab.yaml
+# AUTHORIZED TARGETS ONLY. Replace scope + authorization with your real, permitted assets.
+name: example-lab
+client: Internal Lab
+
+scope:
+  allow_domains: ["example-lab.test"]   # apex form: matches the apex AND any subdomain
+  allow_cidrs: ["10.20.30.0/24"]
+  deny_list: ["10.20.30.5"]           # deny always wins
+  max_action_class: active-exploit        # scan-only: fully unattended, no gates
+  window:
+    start: "2026-07-06T00:00:00Z"
+    end: "2026-07-13T00:00:00Z"
+  rate_limits:
+    requests_per_sec: 20
+    concurrency: 5
+  off_limits: ["DoS", "social-engineering", "data-destruction"]
+
+authorization:
+  authorizer_name: "Lab Owner"
+  authorizer_email: "owner@example-lab.test"
+  method: click-sign                   # click-sign | uploaded-document | contract-reference
+
+autonomy_profile: supervised            # scan-only | supervised | assisted
+
+# Optional explicit seed targets; if omitted, derived from allow_domains.
+seeds:
+  domains: ["example-lab.test"]
+  hosts: ["10.20.30.11"]

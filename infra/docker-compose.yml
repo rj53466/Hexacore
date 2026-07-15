@@ -1,0 +1,58 @@
+# HexaCore platform services (Brain/07 §4). Brings up the datastores you can use today.
+# The api/agent/console images are added once those packages are containerized (they run fine
+# from the host in the meantime). The Kali tool-runner is an on-demand image, not a service —
+# build it with `make kali-build`; the Docker backend launches ephemeral containers from it.
+#
+#   make up            # start postgres, redis, minio
+#   make kali-build    # build the hexacore/kali-tools image
+#   make runner-check  # verify the configured backend (docker or vm)
+
+name: hexacore
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hexacore
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hexacore}
+      POSTGRES_DB: hexacore
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hexacore"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-hexacore}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-change-me}
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["miniodata:/data"]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # A dedicated bridge network for ephemeral tool containers; the Docker backend attaches
+  # `docker run --network hexacore_toolnet ...` here. Egress restriction (Epic C19) layers on top.
+networks:
+  default:
+    name: hexacore_toolnet
+
+volumes:
+  pgdata:
+  miniodata:

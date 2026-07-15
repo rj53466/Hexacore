@@ -1,0 +1,10 @@
+# HexaCore runtime deps (Python 3.12+). Install: pip install -r requirements.txt
+pyyaml
+fastapi
+uvicorn
+jinja2
+xhtml2pdf        # PDF from HTML, pure-Python (WeasyPrint needs native GTK libs — skipped)
+python-docx
+python-jose      # JWT (auth); passwords hashed with stdlib pbkdf2, no passlib/bcrypt
+sqlalchemy       # persistence (SQLite default; Postgres via HEXACORE_DB_URL)
+pytest           # tests

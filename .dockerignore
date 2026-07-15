@@ -1,0 +1,32 @@
+# Build context excludes — keep images lean (nothing here is needed at runtime).
+.git/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+console/node_modules/
+console/dist/
+
+# Not used by the running scanner
+Heart/
+Brain/
+tests/
+skills/
+k8s/
+.agents/
+.claude/
+.codex/
+.antigravity/
+
+# Scratch / secrets / state
+.env
+*.log
+*.db
+var/
+reports/
+graphify-out/
+_legacy_removed/

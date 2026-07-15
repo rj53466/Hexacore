@@ -1,0 +1,30 @@
+# Zero-touch Kali VM for the HexaCore 'vm' backend (Brain/07 §5).
+# `cd infra/vm && vagrant up` — pulls a prebuilt Kali box (no interactive installer), fixes its
+# IP on the VirtualBox host-only network, and installs the Phase-1 tools + SSH. Point HexaCore's
+# VM backend at 192.168.56.20.
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "kalilinux/rolling"     # prebuilt image, no ISO installer, no clicks
+  config.vm.hostname = "hexacore-kali"
+
+  # Fixed address on the private host-only network the platform connects to.
+  config.vm.network "private_network", ip: "192.168.56.20"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.name   = "hexacore-kali"
+    vb.memory = 4096
+    vb.cpus   = 2
+  end
+
+  # Install exactly the Phase-1 tools the platform drives, and make sure SSH is up.
+  config.vm.provision "shell", inline: <<-SHELL
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends \
+      nmap masscan nuclei nikto ffuf gobuster \
+      subfinder amass whatweb httpx-toolkit \
+      testssl.sh sslscan dnsutils curl jq
+    systemctl enable --now ssh
+    echo "HexaCore Kali VM ready at 192.168.56.20 (user: vagrant)"
+  SHELL
+end

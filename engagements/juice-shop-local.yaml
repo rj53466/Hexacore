@@ -1,0 +1,44 @@
+# Local lab engagement — target on the SAME Kali machine, loopback. AUTHORIZED: your own box.
+#
+# On Kali:
+#   1. Start the target (Juice Shop), published to loopback:
+#        docker run -d --name juice -p 127.0.0.1:3000:3000 bkimminich/juice-shop
+#      (or any local target listening on 127.0.0.1)
+#   2. Run HexaCore natively (local backend) from the repo root on Kali:
+#        HEXACORE_RUNNER_BACKEND=local python engage.py --scope engagements/juice-shop-local.yaml
+name: juice-shop-local
+client: Internal Lab (self-owned)
+
+scope:
+  # Loopback is denied by default; the EXACT single address unlocks it (scope.py:142 —
+  # entry must resolve to one address, so /32 not /8).
+  allow_cidrs: ["127.0.0.1/32"]
+  allow_domains: []
+  deny_list: []
+  max_action_class: active-exploit     # allow exploit phase; still human-gated
+  window:
+    start: "2026-07-11T00:00:00Z"
+    end: "2026-07-18T00:00:00Z"
+  rate_limits:
+    requests_per_sec: 20
+    concurrency: 5
+  off_limits: ["DoS", "social-engineering", "data-destruction"]
+
+authorization:
+  authorizer_name: "Local Lab Owner"
+  authorizer_email: "owner@localhost"
+  method: click-sign
+
+autonomy_profile: supervised           # exploit steps pause for your approval
+
+seeds:
+  hosts: ["127.0.0.1"]
+  domains: []
+
+# NOTES (full live pipeline never run before — expect to iterate):
+# - local backend runs whatever tool binaries exist on Kali's PATH. Kali ships nmap/sqlmap/nikto;
+#   ProjectDiscovery tools (nuclei/subfinder/httpx/dnsx) may need `apt install` or the PD installer.
+#   A missing binary should surface as a tool error, not a crash — first thing to watch.
+# - Juice Shop is a web app on :3000 — scan.web_nuclei / scan.web_dir / verify.web_sqli are the
+#   caps that should actually produce findings.
+# - Start with HEXACORE_RUNNER_BACKEND=dryrun to prove flow, then =local for real execution.

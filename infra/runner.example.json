@@ -1,0 +1,19 @@
+{
+  "_comment": "Copy to infra/runner.json and edit. This is what the console 'Tool runner' page saves. Switch 'backend' to change where tools run — nothing else in the platform changes.",
+
+  "backend": "docker",
+
+  "docker": {
+    "image": "hexacore/kali-tools:latest",
+    "network": "hexacore_toolnet"
+  },
+
+  "vm": {
+    "_comment": "Used when backend is 'vm'. Point at your Kali VirtualBox VM by IP.",
+    "host": "192.168.56.20",
+    "user": "kali",
+    "port": 22,
+    "key_path": "~/.ssh/hexacore_kali",
+    "connect_timeout": 10
+  }
+}

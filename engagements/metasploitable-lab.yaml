@@ -1,0 +1,40 @@
+# Local lab engagement — Metasploitable2 VM on a host-only network. AUTHORIZED: your own lab.
+#
+# >>> REPLACE 192.168.56.101 with your Metasploitable VM's real IP <<<
+# Find it: on the Metasploitable console run `ifconfig`, or from Kali:
+#   sudo nmap -sn 192.168.56.0/24     # host discovery on the host-only net
+#
+# Run from repo root on Kali (tools run natively):
+#   HEXACORE_RUNNER_BACKEND=dryrun python3 engage.py --scope engagements/metasploitable-lab.yaml
+#   HEXACORE_RUNNER_BACKEND=local  python3 engage.py --scope engagements/metasploitable-lab.yaml
+name: metasploitable-lab
+client: Internal Lab (self-owned)
+
+scope:
+  allow_cidrs: ["192.168.56.101/32"]   # <-- the Metasploitable VM, exact host
+  allow_domains: []
+  deny_list: []
+  max_action_class: active-exploit     # allow exploit phase; still human-gated
+  window:
+    start: "2026-07-11T00:00:00Z"
+    end: "2026-07-18T00:00:00Z"
+  rate_limits:
+    requests_per_sec: 20
+    concurrency: 5
+  off_limits: ["DoS", "social-engineering", "data-destruction"]
+
+authorization:
+  authorizer_name: "Local Lab Owner"
+  authorizer_email: "owner@localhost"
+  method: click-sign
+
+autonomy_profile: supervised           # exploit steps pause for your approval
+
+seeds:
+  hosts: ["192.168.56.101"]            # <-- same IP as above
+  domains: []
+
+# EXPECT on Metasploitable2: open 21(ftp)/22(ssh)/23(telnet)/25(smtp)/80(http)/139-445(smb)/
+# 3306(mysql)/5432(pg)/8180(tomcat)/6667(irc). scan.ports should map these; verify.msf_check +
+# the exploit gate are where the interesting human-approved steps land.
+# NOTE: full live pipeline never run before — expect tool-binary + output-parser bugs first.
