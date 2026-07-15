@@ -189,5 +189,7 @@ cd console && npm run dev           # console dev server on :5173
 
 ## License
 
-Choose a license before publishing (e.g. Apache-2.0). The bundled skills corpus in `Heart/` is
-Apache-2.0 — keep its `LICENSE`/`NOTICE` intact. Do not brand this as "Anthropic".
+Licensed under **Apache-2.0** — see [LICENSE](LICENSE). The bundled skills corpus in `Heart/` is
+also Apache-2.0; keep its `LICENSE`/`NOTICE` intact. Do not brand this as "Anthropic".
+
+Security policy and how to report a vulnerability: [SECURITY.md](SECURITY.md).
