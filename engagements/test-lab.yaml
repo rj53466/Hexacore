@@ -7,7 +7,7 @@ scope:
   allow_cidrs: ["192.168.221.129/32"]
   allow_domains: []
   deny_list: []
-  max_action_class: active-scan
+  max_action_class: active-exploit
   window:
     start: "2026-07-16T00:00:00Z"
     end: "2026-07-23T00:00:00Z"

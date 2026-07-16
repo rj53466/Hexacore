@@ -16,7 +16,7 @@ class CertipyFindAdapter(CapabilityAdapter):
     action_class = ActionClass.ACTIVE_EXPLOIT
 
     def build_command(self, target: str, params: Params) -> list[str]:
-        argv = ["certipy", "find"]
+        argv = ["certipy-ad", "find"]
 
         if params.get("username"):
             argv.extend(["-u", str(params["username"])])

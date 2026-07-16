@@ -15,10 +15,18 @@ from typing import Optional, Sequence
 from .contract import CheckResult, CommandExec, RunResult
 
 
+# No call site threads a timeout down from the agent runner, so a hung NSE script (Metasploitable-
+# style backdoor ports are notorious for this) blocks the engagement forever. Bound it here, the
+# single choke point every backend's subprocess call goes through.
+# ponytail: flat ceiling for every tool; per-capability timeouts if some legitimately need longer.
+DEFAULT_TOOL_TIMEOUT = 900  # seconds
+
+
 def _subprocess_exec(argv: list[str], *, timeout: Optional[float] = None) -> RunResult:
     try:
         proc = subprocess.run(
-            argv, capture_output=True, text=True, timeout=timeout, check=False,
+            argv, capture_output=True, text=True,
+            timeout=timeout if timeout is not None else DEFAULT_TOOL_TIMEOUT, check=False,
         )
         return RunResult(stdout=proc.stdout, stderr=proc.stderr, exit_code=proc.returncode)
     except FileNotFoundError as exc:

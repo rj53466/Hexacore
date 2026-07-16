@@ -134,13 +134,38 @@ def enrich_with_skills(store, *, generate: Optional[Callable[[str], str]] = None
         return 0
     if generate is None:
         generate = default_generate()
+
+    # A slow/unresponsive Ollama times out per-finding (skill context prompts routinely exceed
+    # HEXACORE_OLLAMA_TIMEOUT on CPU-only inference) with no early exit — on a real finding set this
+    # serially burns minutes per finding before the run can reach later phases. Trip after a few
+    # consecutive failures and fall back to offline (skill-reference-only) advice for the rest.
+    # ponytail: flat trip count, no reset/half-open; good enough for a single enrichment pass.
+    LLM_FAILURE_LIMIT = 3
+    failures = 0
+
+    def guarded_generate(prompt: str) -> str:
+        nonlocal failures
+        try:
+            out = generate(prompt)
+        except Exception:
+            failures += 1
+            raise
+        failures = 0
+        return out
+
     enriched = 0
     for f in store.all():
         try:
+            # A resumed run reuses the same store/findings from the prior pass -- without this,
+            # re-running enrichment would re-append "[Skill-guided] ..." remediation text onto
+            # findings that already have it.
+            if isinstance(f.evidence, dict) and "skill_ref" in f.evidence:
+                continue
             sk = match_skill(f, index)
             if not sk:
                 continue
-            rem, nxt = advise(f, sk, generate)
+            active_generate = guarded_generate if (generate and failures < LLM_FAILURE_LIMIT) else None
+            rem, nxt = advise(f, sk, active_generate)
             if isinstance(f.evidence, dict):
                 f.evidence.setdefault("skill_ref",
                                       {"name": sk.get("name"), "path": sk.get("path"),

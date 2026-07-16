@@ -128,7 +128,7 @@ class TestCertipyFindAdapter:
     def test_build_command(self):
         a = CertipyFindAdapter()
         cmd = a.build_command("10.0.0.5", {"username": "user@domain", "password": "pass"})
-        assert "certipy" in cmd and "find" in cmd
+        assert "certipy-ad" in cmd and "find" in cmd
         assert "-dc-ip" in cmd and "10.0.0.5" in cmd
 
     def test_parse_json_vulnerable(self):

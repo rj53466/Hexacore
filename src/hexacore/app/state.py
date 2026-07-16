@@ -19,7 +19,7 @@ from hexacore.safety import (
 )
 from hexacore_tools import CapabilityExecutor, RunnerSettings, build_backend
 from hexacore_tools.adapters import default_registry
-from hexacore_agent import RunEvent, SimpleEngagementRunner
+from hexacore_agent import RunEvent, RunSession, SimpleEngagementRunner
 
 from .bus import EventBus
 
@@ -50,6 +50,10 @@ class AppState:
         self.gates: dict[str, ApprovalGate] = {}
         self.events: dict[str, list[dict]] = {}
         self.stores: dict[str, FindingStore] = {}
+        # Per-engagement RunSession, kept alive across /run calls so a resume (e.g. after
+        # approving a gated action) only executes what's new instead of replaying the whole
+        # golden path. Lost on process restart -- in-memory, same lifetime as everything else here.
+        self.sessions: dict[str, RunSession] = {}
         self.reports: dict[str, object] = {}
         self.seeds: dict[str, tuple[list, list]] = {}
         self._running: set[str] = set()
@@ -199,7 +203,9 @@ class AppState:
                               f"runner {runner_status['backend']}: {runner_status['detail']}",
                               runner_status))
             runner, _ = self._build_runner(engagement, on_event)
-            return runner.run(engagement, seed_domains=seed_domains, seed_hosts=seed_hosts)
+            session = self.sessions.setdefault(engagement_id, RunSession())
+            return runner.run(engagement, seed_domains=seed_domains, seed_hosts=seed_hosts,
+                              session=session)
 
         try:
             report = await loop.run_in_executor(None, _run)
@@ -209,7 +215,11 @@ class AppState:
         self.reports[engagement_id] = report
         if self.report_repo is not None:
             self.report_repo.save(report, tenant_id)
-        self.service.complete(engagement_id, actor="api", tenant_id=tenant_id)
+        if report.gated:
+            self.service.pause(engagement_id, actor="api", reason="awaiting gate approval",
+                               tenant_id=tenant_id)
+        else:
+            self.service.complete(engagement_id, actor="api", tenant_id=tenant_id)
         self.bus.publish(engagement_id, {"type": "run.complete", "phase": "report",
                                          "detail": f"{report.counts.total} findings",
                                          "payload": report.counts.to_dict()})
