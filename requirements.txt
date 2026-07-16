@@ -7,4 +7,6 @@ xhtml2pdf        # PDF from HTML, pure-Python (WeasyPrint needs native GTK libs 
 python-docx
 python-jose      # JWT (auth); passwords hashed with stdlib pbkdf2, no passlib/bcrypt
 sqlalchemy       # persistence (SQLite default; Postgres via HEXACORE_DB_URL)
+httpx            # OIDC discovery/token calls (auth.py)
+croniter         # scheduled engagement runs (scheduler.py)
 pytest           # tests
