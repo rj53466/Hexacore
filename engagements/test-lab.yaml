@@ -1,0 +1,27 @@
+# Authorized test-lab engagement. Run:
+#   python engage.py --scope engagements/test-lab.yaml
+name: test-lab
+client: Internal Lab
+
+scope:
+  allow_cidrs: ["192.168.221.129/32"]
+  allow_domains: []
+  deny_list: []
+  max_action_class: active-scan
+  window:
+    start: "2026-07-16T00:00:00Z"
+    end: "2026-07-23T00:00:00Z"
+  rate_limits:
+    requests_per_sec: 20
+    concurrency: 5
+  off_limits: ["DoS", "social-engineering", "data-destruction"]
+
+authorization:
+  authorizer_name: "Lab Owner"
+  authorizer_email: "rj53466@gmail.com"
+  method: click-sign
+
+autonomy_profile: supervised
+
+seeds:
+  hosts: ["192.168.221.129"]

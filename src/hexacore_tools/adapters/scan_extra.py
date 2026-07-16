@@ -17,7 +17,7 @@ class TestsslAdapter(CapabilityAdapter):
     action_class = ActionClass.ACTIVE_SCAN
 
     def build_command(self, target: str, params: Params) -> list[str]:
-        return ["testssl.sh", "--jsonfile-pretty", "/dev/stdout", "--quiet", target]
+        return ["testssl", "--jsonfile-pretty", "/dev/stdout", "--quiet", target]
 
     def parse(self, raw: str, target: str) -> list[Finding]:
         out: list[Finding] = []

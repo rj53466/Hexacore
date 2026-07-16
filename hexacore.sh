@@ -67,7 +67,7 @@ step "Pentest tools"
 declare -A TOOL_PKG=(
   [nmap]=nmap [nuclei]=nuclei [subfinder]=subfinder [httpx]=httpx-toolkit [dnsx]=dnsx
   [whatweb]=whatweb [ffuf]=ffuf [nikto]=nikto [sqlmap]=sqlmap [curl]=curl
-  [testssl.sh]=testssl.sh [nxc]=netexec [certipy]=certipy-ad [msfconsole]=metasploit-framework
+  [testssl]=testssl.sh [nxc]=netexec [certipy]=certipy-ad [msfconsole]=metasploit-framework
 )
 missing=()
 for bin in "${!TOOL_PKG[@]}"; do have "$bin" || missing+=("$bin"); done
