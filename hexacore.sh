@@ -54,7 +54,7 @@ REQ_HASH="$(sha256sum "$ROOT/requirements.txt" | cut -d' ' -f1)"
 MARKER="$VENV/.deps-$REQ_HASH"
 if [ ! -f "$MARKER" ]; then
   python -m pip install -q --upgrade pip
-  python -m pip install -q -r "$ROOT/requirements.txt"
+  python -m pip install -q -e "$ROOT"
   rm -f "$VENV"/.deps-* ; touch "$MARKER"
   ok "installed Python dependencies"
 else
@@ -111,7 +111,7 @@ fi
 # ---- 6. skills index (for skill-guided enrichment) ------------------------
 step "Skills index"
 if [ ! -f "$ROOT/skills-index.json" ]; then
-  ( cd "$ROOT" && PYTHONPATH="$ROOT/skills" python -m skillsvc.ingest --heart Heart --index skills-index.json --report /tmp/skills-report.md >/dev/null )
+  ( cd "$ROOT" && python -m skillsvc.ingest --heart Heart --index skills-index.json --report /tmp/skills-report.md >/dev/null )
   ok "built skills-index.json"
 else
   ok "skills-index.json present"

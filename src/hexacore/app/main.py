@@ -79,9 +79,8 @@ def create_app(state: AppState | None = None) -> FastAPI:
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
     )
 
-    # RBAC: reads need viewer, mutations need operator (owner outranks both).
-    viewer = Depends(require_min_role("viewer"))
-    operator = Depends(require_min_role("operator"))
+    # RBAC: reads need viewer, mutations need operator (owner outranks both) — enforced per-route
+    # via Depends(require_min_role(...)) on each endpoint below.
 
     def require(engagement_id: str, tenant_id: str):
         eng = state.service.repo.get(engagement_id, tenant_id=tenant_id)
@@ -397,7 +396,7 @@ def create_app(state: AppState | None = None) -> FastAPI:
             return
         await websocket.accept()
         try:
-            eng = require(engagement_id, user["tenant_id"])
+            require(engagement_id, user["tenant_id"])  # 404-guard: raises if not found/authorized
         except HTTPException:
             await websocket.close(code=4404)
             return
@@ -422,7 +421,6 @@ def create_app(state: AppState | None = None) -> FastAPI:
         finally:
             state.bus.unsubscribe(engagement_id, q)
 
-    import os
     from pathlib import Path
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse

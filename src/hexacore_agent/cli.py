@@ -9,24 +9,16 @@ point HEXACORE_RUNNER_BACKEND at docker/vm to run for real.
 from __future__ import annotations
 
 import argparse
-import sys
-from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parents[2]
-for _p in ("api", "tools"):
-    _pp = str(_ROOT / _p)
-    if _pp not in sys.path:
-        sys.path.insert(0, _pp)
-
-from hexacore.engagements import EngagementError, EngagementService  # noqa: E402
-from hexacore.loader import load_engagement  # noqa: E402
-from hexacore.safety import (  # noqa: E402
+from hexacore.engagements import EngagementError, EngagementService
+from hexacore.loader import load_engagement
+from hexacore.safety import (
     ActionClassifier, ApprovalGate, AuditLog, KillSwitch, SafetyLayer, ScopeValidator,
 )
-from hexacore_tools import CapabilityExecutor, RunnerSettings, build_backend  # noqa: E402
-from hexacore_tools.adapters import default_registry  # noqa: E402
+from hexacore_tools import CapabilityExecutor, RunnerSettings, build_backend
+from hexacore_tools.adapters import default_registry
 
-from .runner import RunEvent, SimpleEngagementRunner  # noqa: E402
+from .runner import RunEvent, SimpleEngagementRunner
 
 
 def _print_event(ev: RunEvent) -> None:

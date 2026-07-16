@@ -17,27 +17,17 @@ from __future__ import annotations
 
 import json
 import os
-import sys
-import urllib.request
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Callable, Optional, TypedDict
 
-_ROOT = Path(__file__).resolve().parents[2]
-for _p in ("api", "tools"):
-    _pp = str(_ROOT / _p)
-    if _pp not in sys.path:
-        sys.path.insert(0, _pp)
+from langgraph.graph import END, START, StateGraph
 
-from langgraph.graph import END, START, StateGraph  # noqa: E402
-
-from hexacore.findings import FindingStore  # noqa: E402
-from hexacore.safety import SafetyViolation  # noqa: E402
-from hexacore_tools import CapabilityExecutor, ExecutionStatus  # noqa: E402
-from hexacore.models import Engagement
-from hexacore.findings.store import FindingStore
-from .runner import EngagementReport, RunEvent  # noqa: E402
-from .analyzer import enrich_findings  # noqa: E402
+from hexacore.findings import FindingStore
+from hexacore.safety import SafetyViolation
+from hexacore_tools import CapabilityExecutor, ExecutionStatus
+from .runner import EngagementReport, RunEvent
+from .analyzer import enrich_findings
+from .skill_advisor import ollama_generate
 
 _RECON_CAPS = ["recon.subdomains", "recon.http_probe", "recon.dns", "recon.tech", "recon.ct_logs"]
 _SCAN_CAPS = ["scan.ports", "scan.web_nuclei", "scan.tls", "scan.web_dir", "scan.web_nikto"]
@@ -122,13 +112,7 @@ class ModelRouter:
         return parsed
 
     def _ollama_generate(self, prompt: str) -> str:
-        """One-shot, non-streaming Ollama generate over its HTTP API (stdlib, no SDK)."""
-        body = json.dumps({"model": self.model, "prompt": prompt,
-                           "stream": False, "format": "json"}).encode()
-        req = urllib.request.Request(self.host + "/api/generate", data=body,
-                                     headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            return json.loads(resp.read()).get("response", "")
+        return ollama_generate(prompt, host=self.host, model=self.model, timeout=self.timeout)
 
 
 class GraphState(TypedDict):
@@ -203,26 +187,19 @@ def build_graph(ctx: _Ctx):
         _run_one(ctx, state["phase"], cap, target)
         return {"phase": state["phase"], "queue": state["queue"][1:], "steps": state["steps"] + 1}
 
-    def scan_setup(state: GraphState) -> GraphState:
-        ctx.emit(RunEvent("phase.changed", "scan", "Scan phase"))
-        hosts = sorted(set(ctx.discovered) | set(ctx.seed_hosts))
-        tasks = [(c, h) for h in hosts for c in ctx.router.scan_caps()]
-        q = [list(t) for t in ctx.router.order(tasks)]
-        return {"phase": "scan", "queue": q, "steps": state["steps"]}
+    def _phase_setup(phase: str, label: str, caps_fn):
+        """Build a setup node: emit the phase change, then queue caps × discovered/seed hosts."""
+        def setup(state: GraphState) -> GraphState:
+            ctx.emit(RunEvent("phase.changed", phase, label))
+            hosts = sorted(set(ctx.discovered) | set(ctx.seed_hosts))
+            tasks = [(c, h) for h in hosts for c in caps_fn()]
+            q = [list(t) for t in ctx.router.order(tasks)]
+            return {"phase": phase, "queue": q, "steps": state["steps"]}
+        return setup
 
-    def enum_setup(state: GraphState) -> GraphState:
-        ctx.emit(RunEvent("phase.changed", "enum", "Enum phase"))
-        hosts = sorted(set(ctx.discovered) | set(ctx.seed_hosts))
-        tasks = [(c, h) for h in hosts for c in ctx.router.enum_caps()]
-        q = [list(t) for t in ctx.router.order(tasks)]
-        return {"phase": "enum", "queue": q, "steps": state["steps"]}
-
-    def verify_setup(state: GraphState) -> GraphState:
-        ctx.emit(RunEvent("phase.changed", "verify", "Verify phase"))
-        hosts = sorted(set(ctx.discovered) | set(ctx.seed_hosts))
-        tasks = [(c, h) for h in hosts for c in ctx.router.verify_caps()]
-        q = [list(t) for t in ctx.router.order(tasks)]
-        return {"phase": "verify", "queue": q, "steps": state["steps"]}
+    scan_setup = _phase_setup("scan", "Scan phase", ctx.router.scan_caps)
+    enum_setup = _phase_setup("enum", "Enum phase", ctx.router.enum_caps)
+    verify_setup = _phase_setup("verify", "Verify phase", ctx.router.verify_caps)
 
     def route(state: GraphState) -> str:
         if state["queue"]:

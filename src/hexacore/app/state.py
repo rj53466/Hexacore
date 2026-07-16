@@ -10,16 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-import sys
-from pathlib import Path
 from typing import Optional
-
-# Sibling packages on path (tools/ and agent/) when the API is imported directly.
-_ROOT = Path(__file__).resolve().parents[3]
-for _p in ("tools", "agent", "reporting"):
-    _pp = str(_ROOT / _p)
-    if _pp not in sys.path:
-        sys.path.insert(0, _pp)
 
 from hexacore.engagements import EngagementService
 from hexacore.findings import FindingStore

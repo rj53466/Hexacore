@@ -7,7 +7,6 @@ reports what was gathered.
 """
 from __future__ import annotations
 
-import json
 import re
 
 from ..base import CapabilityAdapter, Finding, Params, Severity

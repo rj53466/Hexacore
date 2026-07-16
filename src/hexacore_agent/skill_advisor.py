@@ -24,6 +24,16 @@ _ROOT = Path(__file__).resolve().parents[2]          # repo root
 _WORD = re.compile(r"[a-z0-9]+")
 
 
+def ollama_generate(prompt: str, *, host: str, model: str, timeout: float) -> str:
+    """One-shot, non-streaming Ollama /api/generate call (stdlib urllib, no SDK)."""
+    body = json.dumps({"model": model, "prompt": prompt, "stream": False,
+                       "format": "json"}).encode()
+    req = urllib.request.Request(host.rstrip("/") + "/api/generate", data=body,
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read()).get("response", "")
+
+
 def load_index(path: Optional[str | Path] = None) -> list[dict]:
     """Load the valid-skills list from skills-index.json. Missing/broken index -> [] (feature off)."""
     p = Path(path) if path else _ROOT / "skills-index.json"
@@ -82,13 +92,10 @@ def default_generate() -> Optional[Callable[[str], str]]:
     model = os.getenv("HEXACORE_OLLAMA_MODEL", "qwen2.5:7b")
     host = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
 
+    timeout = float(os.getenv("HEXACORE_OLLAMA_TIMEOUT", "45"))
+
     def _gen(prompt: str) -> str:
-        body = json.dumps({"model": model, "prompt": prompt, "stream": False,
-                           "format": "json"}).encode()
-        req = urllib.request.Request(host + "/api/generate", data=body,
-                                     headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=float(os.getenv("HEXACORE_OLLAMA_TIMEOUT", "45"))) as resp:
-            return json.loads(resp.read()).get("response", "")
+        return ollama_generate(prompt, host=host, model=model, timeout=timeout)
     return _gen
 
 

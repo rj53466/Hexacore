@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
+from functools import lru_cache
 from typing import Optional
 
 from sqlalchemy import String, Text, create_engine, select
@@ -35,6 +36,14 @@ DEFAULT_URL = os.getenv("HEXACORE_DB_URL", "sqlite:///hexacore.db")
 
 class Base(DeclarativeBase):
     pass
+
+
+@lru_cache(maxsize=None)
+def _get_engine(url: str):
+    """One shared engine (and one create_all) per DB URL — all repos reuse it."""
+    engine = create_engine(url)
+    Base.metadata.create_all(engine)
+    return engine
 
 
 class EngagementRow(Base):
@@ -129,8 +138,7 @@ class SqlEngagementRepository:
     """Durable EngagementRepository. Instantiate once; safe to reopen on the same URL."""
 
     def __init__(self, url: str = DEFAULT_URL):
-        self.engine = create_engine(url)
-        Base.metadata.create_all(self.engine)
+        self.engine = _get_engine(url)
 
     def add(self, engagement: Engagement) -> None:
         self.save(engagement)
@@ -206,8 +214,7 @@ class SqlEventRepository:
     Insertion order (autoincrement id) is the event order — no explicit seq needed.
     """
     def __init__(self, url: str = DEFAULT_URL):
-        self.engine = create_engine(url)
-        Base.metadata.create_all(self.engine)
+        self.engine = _get_engine(url)
 
     def append(self, engagement_id: str, tenant_id: str, ev: dict) -> None:
         with Session(self.engine) as s:
@@ -230,8 +237,7 @@ class SqlEventRepository:
 
 class SqlScheduleRepository:
     def __init__(self, url: str = DEFAULT_URL):
-        self.engine = create_engine(url)
-        Base.metadata.create_all(self.engine)
+        self.engine = _get_engine(url)
 
     def save(self, schedule: Schedule) -> None:
         with Session(self.engine) as s:
@@ -377,8 +383,7 @@ def _load_report(row: ReportRow) -> EngagementReport:
 
 class SqlReportRepository:
     def __init__(self, url: str = DEFAULT_URL):
-        self.engine = create_engine(url)
-        Base.metadata.create_all(self.engine)
+        self.engine = _get_engine(url)
 
     def save(self, report: EngagementReport, tenant_id: str = "default") -> None:
         with Session(self.engine) as s:
@@ -402,8 +407,7 @@ class TenantConfigRow(Base):
 
 class TenantConfigRepository:
     def __init__(self, url: str = DEFAULT_URL):
-        self.engine = create_engine(url)
-        Base.metadata.create_all(self.engine)
+        self.engine = _get_engine(url)
 
     def get_webhook(self, tenant_id: str) -> Optional[str]:
         with Session(self.engine) as s:

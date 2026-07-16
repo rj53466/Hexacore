@@ -5,7 +5,6 @@ unless explicitly parameterised and gated.
 """
 from __future__ import annotations
 
-import json
 
 from ..base import CapabilityAdapter, Finding, Params, Severity
 from hexacore.safety.actions import ActionClass

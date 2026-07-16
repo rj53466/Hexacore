@@ -14,18 +14,11 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Protocol
 
-import sys
-from pathlib import Path
-
-_API = Path(__file__).resolve().parents[2] / "api"
-if str(_API) not in sys.path:
-    sys.path.insert(0, str(_API))
-
-from hexacore.safety import SafetyLayer, SafetyViolation, Verdict  # noqa: E402
-from hexacore.safety.approval import Approval  # noqa: E402
+from hexacore.safety import SafetyLayer, SafetyViolation, Verdict
+from hexacore.safety.approval import Approval
 # Reuse the Scope Validator's own target->host normalization so the container egress firewall
 # allows exactly the host the safety layer just authorized (no second, divergent parser).
-from hexacore.safety.scope import _extract_host, _normalize_host  # noqa: E402
+from hexacore.safety.scope import _extract_host, _normalize_host
 
 from .base import CapabilityRegistry, Finding
 from .backends.contract import RunResult  # shared run contract

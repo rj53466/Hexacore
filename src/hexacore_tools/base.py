@@ -13,15 +13,7 @@ from enum import Enum
 from functools import total_ordering
 from typing import Mapping, Optional
 
-import sys
-from pathlib import Path
-
-# Allow importing the safety package whether or not the parent app is installed.
-_API = Path(__file__).resolve().parents[2] / "api"
-if str(_API) not in sys.path:
-    sys.path.insert(0, str(_API))
-
-from hexacore.safety.actions import ActionClass  # noqa: E402
+from hexacore.safety.actions import ActionClass
 
 
 @total_ordering

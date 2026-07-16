@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Cross-platform launcher for the HexaCore API server.
 
     python serve.py                 # http://localhost:8000  (docs at /docs)
@@ -10,14 +10,8 @@ import argparse
 import sys
 from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parent
-for _p in ("api", "tools", "agent"):
-    _pp = str(_ROOT / _p)
-    if _pp not in sys.path:
-        sys.path.insert(0, _pp)
-
-from hexacore.env import load_env_file  # noqa: E402
-import uvicorn  # noqa: E402
+from hexacore.env import load_env_file
+import uvicorn
 
 
 def main() -> None:

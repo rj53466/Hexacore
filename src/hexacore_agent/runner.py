@@ -13,24 +13,15 @@ subscribe later.
 """
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Callable, Optional
 
-# Make the sibling packages importable when run as a script.
-_ROOT = Path(__file__).resolve().parents[2]
-for _p in ("api", "tools"):
-    _pp = str(_ROOT / _p)
-    if _pp not in sys.path:
-        sys.path.insert(0, _pp)
-
-from hexacore.findings import FindingStore, SeverityCounts  # noqa: E402
-from hexacore.models import Engagement  # noqa: E402
-from hexacore.safety import SafetyViolation  # noqa: E402
-from hexacore_tools import CapabilityExecutor, ExecutionStatus  # noqa: E402
-from .analyzer import enrich_findings  # noqa: E402
-from .skill_advisor import load_index, next_capabilities  # noqa: E402
+from hexacore.findings import FindingStore, SeverityCounts
+from hexacore.models import Engagement
+from hexacore.safety import SafetyViolation
+from hexacore_tools import CapabilityExecutor, ExecutionStatus
+from .analyzer import enrich_findings
+from .skill_advisor import load_index, next_capabilities
 
 _SKILL_INDEX_CACHE: Optional[list] = None
 

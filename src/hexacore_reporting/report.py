@@ -8,7 +8,6 @@ severity with CWE/CVE/ATT&CK/remediation, retest checklist, appendix.
 from __future__ import annotations
 
 import io
-from typing import Optional
 
 from jinja2 import Template
 

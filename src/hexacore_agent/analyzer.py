@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from hexacore.findings.store import FindingStore
-from hexacore_tools.base import Severity, Finding
+from hexacore_tools.base import Severity
 
 _VULN_DB = {
     r"nginx\s*/?\s*1\.18\.0": {
