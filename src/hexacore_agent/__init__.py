@@ -7,9 +7,9 @@ layer:
   verify_setup) with a `ModelRouter` (deterministic by default; `local`/`ollama` reprioritises the
   task queue via a local Ollama model).
 """
-from .runner import EngagementReport, RunEvent, SimpleEngagementRunner
+from .runner import EngagementReport, RunEvent, RunSession, SimpleEngagementRunner
 
-__all__ = ["SimpleEngagementRunner", "EngagementReport", "RunEvent",
+__all__ = ["SimpleEngagementRunner", "EngagementReport", "RunEvent", "RunSession",
            "LangGraphEngagementRunner", "ModelRouter"]
 
 

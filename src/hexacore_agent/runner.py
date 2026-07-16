@@ -57,6 +57,23 @@ class EngagementReport:
     denied_targets: list[str]
 
 
+@dataclass
+class RunSession:
+    """Carries state across repeated `run()` calls for the same engagement (e.g. resuming after a
+    gate approval), so a resume only executes what's new instead of replaying the whole golden path.
+
+    Caller owns the instance (one per engagement, kept alive across HTTP /run calls) and passes it
+    back in on every call; `run()` mutates it in place. A fresh `RunSession()` behaves exactly like
+    no session was passed — first run always executes everything, same as before this existed.
+    """
+    store: FindingStore = field(default_factory=FindingStore)
+    discovered_hosts: set[str] = field(default_factory=set)
+    # tool_run_ids that reached a terminal, non-gated outcome (completed or denied) -- never
+    # re-executed. GATED ones are deliberately never added here so a resume retries them and picks
+    # up any approval granted since the last run.
+    completed: set[str] = field(default_factory=set)
+
+
 EventSink = Callable[[RunEvent], None]
 
 # The fixed Phase-1 plan (Brain/06 §7). All <= active-scan; no gates.
@@ -100,9 +117,17 @@ class SimpleEngagementRunner:
 
     def _run_capability(self, *, engagement: Engagement, phase: str, capability: str,
                         target: str, store: FindingStore, events: list[RunEvent],
-                        gated: list, denied: list, seq: list[int]) -> list:
-        seq[0] += 1
-        tool_run_id = f"{engagement.id}-{seq[0]}"
+                        gated: list, denied: list, completed: set[str]) -> list:
+        # Deterministic (not positional) so a resumed run can recognize "already did this" even if
+        # earlier phases skip work and shift what would otherwise be a sequential counter.
+        tool_run_id = f"{engagement.id}:{phase}:{capability}:{target}"
+
+        if tool_run_id in completed:
+            self._emit(events, RunEvent("command.skipped", phase,
+                                        f"{capability} -> {target}: already done, skipping",
+                                        {"capability": capability, "target": target}))
+            return []
+
         self._emit(events, RunEvent("command.started", phase,
                                     f"{capability} -> {target}",
                                     {"capability": capability, "target": target}))
@@ -113,6 +138,7 @@ class SimpleEngagementRunner:
             )
         except SafetyViolation as exc:
             denied.append(target)
+            completed.add(tool_run_id)  # scope/ceiling can't change post-authorization; won't un-deny
             self._emit(events, RunEvent("scope.denied", phase, f"{capability} -> {target}: {exc}",
                                         {"capability": capability, "target": target,
                                          "reason": str(exc)}))
@@ -120,11 +146,13 @@ class SimpleEngagementRunner:
 
         if result.status is ExecutionStatus.GATED:
             gated.append(result.approval)
+            # Not marked completed -- a future resume must retry this once approved.
             self._emit(events, RunEvent("gate.requested", phase,
                                         f"{capability} -> {target} needs approval",
                                         {"capability": capability, "target": target}))
             return []
 
+        completed.add(tool_run_id)
         new = store.add_many(result.findings)
         self._emit(events, RunEvent("command.finished", phase,
                                     f"{capability} -> {target}: {len(result.findings)} findings "
@@ -137,22 +165,26 @@ class SimpleEngagementRunner:
         return result.findings
 
     def run(self, engagement: Engagement, *, seed_domains: list[str],
-            seed_hosts: Optional[list[str]] = None) -> EngagementReport:
+            seed_hosts: Optional[list[str]] = None,
+            session: Optional[RunSession] = None) -> EngagementReport:
         seed_hosts = list(seed_hosts or [])
-        store = FindingStore()
+        session = session if session is not None else RunSession()
+        store = session.store
         events: list[RunEvent] = []
         gated: list = []
         denied: list[str] = []
-        seq = [0]
+        completed = session.completed
 
         def cap(phase, capability, target):
             return self._run_capability(
                 engagement=engagement, phase=phase, capability=capability, target=target,
-                store=store, events=events, gated=gated, denied=denied, seq=seq)
+                store=store, events=events, gated=gated, denied=denied, completed=completed)
 
-        # --- RECON ---
+        # --- RECON --- (already-discovered hosts carry over on a resume; recon capabilities that
+        # already ran are skipped individually via `completed`, same as every other phase)
         self._emit(events, RunEvent("phase.changed", "recon", "Recon phase"))
-        discovered_hosts: set[str] = set(seed_hosts)
+        discovered_hosts: set[str] = session.discovered_hosts
+        discovered_hosts.update(seed_hosts)
         for domain in seed_domains:
             for f in cap("recon", "recon.subdomains", domain):
                 host = f.evidence.get("host")
