@@ -25,7 +25,13 @@ const TYPE_ICON: Record<TType, string> = { IP: "lan", CIDR: "hub", URL: "link", 
 function toScope(targets: Target[], ceiling: string) {
   const domains = new Set<string>(), cidrs = new Set<string>(), seedHosts = new Set<string>(), seedDomains = new Set<string>();
   for (const t of targets) {
-    if (t.type === "CIDR") cidrs.add(t.value);
+    if (t.type === "CIDR") {
+      cidrs.add(t.value);
+      // A /32 names exactly one host (e.g. loopback) -- seed it too, or the engine has scope
+      // authorization but nothing to actually scan and the run silently no-ops.
+      const single = t.value.match(/^(\d{1,3}(?:\.\d{1,3}){3})\/32$/);
+      if (single) seedHosts.add(single[1]);
+    }
     else if (t.type === "IP") { cidrs.add(t.value + "/32"); seedHosts.add(t.value); }
     else if (t.type === "URL") { const h = hostOf(t.value); if (/^\d/.test(h)) { cidrs.add(h + "/32"); seedHosts.add(h); } else { domains.add(h); seedDomains.add(h); } }
     else { domains.add(t.value); seedDomains.add(t.value); } // Domain, Hostname

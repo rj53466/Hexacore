@@ -111,6 +111,7 @@ export const api = {
   listEngagements: (): Promise<Engagement[]> => req("/engagements"),
   getEngagement: (id: string): Promise<Engagement> => req(`/engagements/${id}`),
   kill: (id?: string) => req("/kill", "POST", { engagement_id: id ?? null }),
+  shutdown: () => req("/system/shutdown", "POST", {}),
   approvals: (id: string) => req(`/engagements/${id}/approvals`),
   findings: (id: string): Promise<{ findings: ApiFinding[]; counts: SeverityCounts | null }> =>
     req(`/engagements/${id}/findings`),

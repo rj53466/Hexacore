@@ -1,7 +1,7 @@
 import { useState, useSyncExternalStore } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { api, clearToken } from "./api";
+import { api, clearToken, session } from "./api";
 
 /* ---------- System state (Running / Paused / Stopped) ---------- */
 export type SysState = "running" | "paused" | "stopped";
@@ -69,6 +69,31 @@ function KillSwitch() {
   );
 }
 
+/* ---------- Stop project (shuts down the whole server process) ---------- */
+function StopProject() {
+  const [stopping, setStopping] = useState(false);
+  if (session()?.role !== "owner") return null; // matches backend's owner-only /system/shutdown
+  return (
+    <button
+      className="bg-surface-container-low text-error border border-error/50 px-4 py-2 font-mono-label text-mono-label rounded-lg transition-all active:scale-95 hover:bg-error hover:text-on-error flex items-center gap-2 uppercase tracking-widest font-bold disabled:opacity-50"
+      disabled={stopping}
+      onClick={async () => {
+        if (!confirm("Stop HexaCore entirely?\nThis shuts down the backend server and the console will go offline.")) return;
+        setStopping(true);
+        try {
+          await api.shutdown();
+          toast("HexaCore is shutting down…", "error");
+        } catch (e) {
+          toast("Shutdown failed (" + String(e).replace("Error: ", "") + ")", "warn");
+          setStopping(false);
+        }
+      }}
+    >
+      <Icon name="power_settings_new" className="text-base" /> {stopping ? "STOPPING…" : "STOP"}
+    </button>
+  );
+}
+
 /* ---------- Top bar ---------- */
 function TopBar() {
   const sys = useSysState();
@@ -94,6 +119,7 @@ function TopBar() {
           <Icon name="logout" className="text-base" /> LOGOUT
         </button>
         <KillSwitch />
+        <StopProject />
       </div>
     </header>
   );

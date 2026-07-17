@@ -75,6 +75,17 @@ class AppState:
             return self.event_repo.list(engagement_id, tenant_id)
         return self.events.get(engagement_id, [])
 
+    def _record(self, engagement_id: str, tenant_id: str, d: dict) -> None:
+        """Persist + publish one event. Every event a reconnecting client might need to replay
+        (including the run.complete/run.error terminal message) MUST go through this, not a bare
+        bus.publish() -- the bus only reaches subscribers live at publish time, so a client that
+        (re)connects after the run already finished needs the terminal event in the replay too,
+        or its live-feed status hangs on "connecting"/"live" forever."""
+        self.events.setdefault(engagement_id, []).append(d)
+        if self.event_repo is not None:
+            self.event_repo.append(engagement_id, tenant_id, d)
+        self.bus.publish(engagement_id, d)
+
     def report_for(self, engagement_id: str, tenant_id: str) -> Optional[object]:
         if self.report_repo is not None:
             return self.report_repo.get(engagement_id, tenant_id)
@@ -189,11 +200,7 @@ class AppState:
         self._running.add(engagement_id)
 
         def on_event(ev):
-            d = _event_to_dict(ev)
-            self.events[engagement_id].append(d)
-            if self.event_repo is not None:
-                self.event_repo.append(engagement_id, tenant_id, d)
-            self.bus.publish(engagement_id, d)
+            self._record(engagement_id, tenant_id, _event_to_dict(ev))
 
         def _run():
             # start transition happens in-thread so its EngagementError surfaces to the caller.
@@ -220,8 +227,8 @@ class AppState:
                                tenant_id=tenant_id)
         else:
             self.service.complete(engagement_id, actor="api", tenant_id=tenant_id)
-        self.bus.publish(engagement_id, {"type": "run.complete", "phase": "report",
-                                         "detail": f"{report.counts.total} findings",
-                                         "payload": report.counts.to_dict()})
+        self._record(engagement_id, tenant_id, {"type": "run.complete", "phase": "report",
+                                                "detail": f"{report.counts.total} findings",
+                                                "payload": report.counts.to_dict()})
         return report
 

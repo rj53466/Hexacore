@@ -1,4 +1,8 @@
 """LangGraph engine parity with the deterministic runner + model-router seam."""
+import pytest
+
+pytest.importorskip("langgraph", reason="LangGraph engine is optional -- see hexacore_agent/__init__.py")
+
 from hexacore.models import Engagement, EngagementStatus
 from hexacore.safety import (
     ActionClassifier, ApprovalGate, AuditLog, KillSwitch, SafetyLayer, Scope, ScopeValidator,

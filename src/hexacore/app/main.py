@@ -405,6 +405,21 @@ def create_app(state: AppState | None = None) -> FastAPI:
                            engagement_id=body.engagement_id, scope="engagement")
         return {"killed": body.engagement_id}
 
+    # -- system shutdown (stops the whole server process, not just an engagement) ---
+    @app.post("/system/shutdown")
+    async def shutdown(user: dict = Depends(require_min_role("owner"))) -> dict:
+        import os
+        import signal
+
+        state.audit.record("system.shutdown", actor=f"user:{user['sub']}", scope="tenant")
+
+        async def _exit() -> None:
+            await asyncio.sleep(0.3)  # let the response flush before the process dies
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        asyncio.create_task(_exit())
+        return {"status": "shutting down"}
+
     # -- live event feed (WebSocket) --------------------------------------
     @app.websocket("/engagements/{engagement_id}/ws")
     async def ws_events(websocket: WebSocket, engagement_id: str, token: str = "") -> None:
@@ -462,8 +477,8 @@ async def _safe_run(state: AppState, engagement_id: str, tenant_id: str, domains
     try:
         await state.run_engagement(engagement_id, tenant_id, seed_domains=domains, seed_hosts=hosts)
     except EngagementError as exc:
-        state.bus.publish(engagement_id, {"type": "run.error", "phase": "start",
-                                          "detail": str(exc), "payload": {}})
+        state._record(engagement_id, tenant_id, {"type": "run.error", "phase": "start",  # noqa: SLF001
+                                                  "detail": str(exc), "payload": {}})
 
 
 app = create_app()
