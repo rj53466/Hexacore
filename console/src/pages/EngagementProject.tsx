@@ -174,32 +174,9 @@ function SettingsModal({ engId, name, onClose }: { engId: string; name: string; 
         </div>
         <div className="p-lg space-y-lg">
           <section>
-            <h4 className="font-mono-label text-mono-label text-primary uppercase tracking-widest mb-md">Scan Engine</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
-              <div><label className={lbl}>Scan profile</label><select className={input + " cursor-pointer"} value={s.scanProfile} onChange={(e) => set("scanProfile", e.target.value)}>{["stealth", "balanced", "aggressive"].map((x) => <option key={x} value={x}>{x}</option>)}</select></div>
-              <div><label className={lbl}>Scan depth: {s.scanDepth}</label><input type="range" min={1} max={5} value={s.scanDepth} onChange={(e) => set("scanDepth", +e.target.value)} className="w-full accent-primary mt-2.5" /></div>
-              <div><label className={lbl}>Rate limit (req/s)</label><input type="number" min={1} className={input} value={s.rateLimit} onChange={(e) => set("rateLimit", +e.target.value)} /></div>
-              <div><label className={lbl}>Thread count</label><input type="number" min={1} className={input} value={s.threadCount} onChange={(e) => set("threadCount", +e.target.value)} /></div>
-              <div><label className={lbl}>Request timeout (s)</label><input type="number" min={1} className={input} value={s.timeoutSec} onChange={(e) => set("timeoutSec", +e.target.value)} /></div>
-            </div>
-          </section>
-          <section>
-            <h4 className="font-mono-label text-mono-label text-primary uppercase tracking-widest mb-md">HTTP</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
-              <div><label className={lbl}>Authentication</label><select className={input + " cursor-pointer"} value={s.authType} onChange={(e) => set("authType", e.target.value)}>{["none", "basic", "bearer", "cookie"].map((x) => <option key={x} value={x}>{x}</option>)}</select></div>
-              <div><label className={lbl}>Auth value</label><input className={input} value={s.authValue} disabled={s.authType === "none"} onChange={(e) => set("authValue", e.target.value)} placeholder={s.authType === "bearer" ? "token" : s.authType === "cookie" ? "session=…" : "user:pass"} /></div>
-              <div><label className={lbl}>User-Agent</label><input className={input} value={s.userAgent} onChange={(e) => set("userAgent", e.target.value)} /></div>
-              <div className="md:col-span-2"><label className={lbl}>Custom headers (one per line)</label><textarea className={input + " h-20 font-code-block text-code-block"} value={s.customHeaders} onChange={(e) => set("customHeaders", e.target.value)} placeholder={"X-Api-Key: abc\nReferer: https://app.test"} /></div>
-            </div>
-          </section>
-          <section>
-            <h4 className="font-mono-label text-mono-label text-primary uppercase tracking-widest mb-md">Notifications & Report</h4>
+            <h4 className="font-mono-label text-mono-label text-primary uppercase tracking-widest mb-md">Notifications</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
               <div><label className={lbl}>Alert webhook (Slack/HTTP)</label><input className={input} value={s.notifyWebhook} onChange={(e) => set("notifyWebhook", e.target.value)} placeholder="https://hooks.slack.com/…" /></div>
-              <div><label className={lbl}>Default report format</label><select className={input + " cursor-pointer"} value={s.reportFormat} onChange={(e) => set("reportFormat", e.target.value)}>{["html", "pdf", "docx"].map((x) => <option key={x} value={x}>{x}</option>)}</select></div>
-              <label className="flex items-center gap-2 text-body-sm text-on-surface-variant cursor-pointer"><input type="checkbox" className="accent-primary" checked={s.notifyOnCritical} onChange={(e) => set("notifyOnCritical", e.target.checked)} />Notify on critical finding</label>
-              <label className="flex items-center gap-2 text-body-sm text-on-surface-variant cursor-pointer"><input type="checkbox" className="accent-primary" checked={s.notifyOnComplete} onChange={(e) => set("notifyOnComplete", e.target.checked)} />Notify on run complete</label>
-              <label className="flex items-center gap-2 text-body-sm text-on-surface-variant cursor-pointer"><input type="checkbox" className="accent-primary" checked={s.reportIncludeInfo} onChange={(e) => set("reportIncludeInfo", e.target.checked)} />Include info-level findings in report</label>
             </div>
           </section>
         </div>

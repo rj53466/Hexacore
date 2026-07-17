@@ -2,27 +2,11 @@ import { useSyncExternalStore } from "react";
 
 /* ---------------- Engagement settings (per engagement, persisted) ---------------- */
 export interface EngagementSettings {
-  scanProfile: "stealth" | "balanced" | "aggressive";
-  scanDepth: number;          // 1-5
-  rateLimit: number;          // requests/sec
-  threadCount: number;
-  authType: "none" | "basic" | "bearer" | "cookie";
-  authValue: string;
-  customHeaders: string;      // raw "Key: Value" lines
-  userAgent: string;
-  timeoutSec: number;
-  notifyOnCritical: boolean;
-  notifyOnComplete: boolean;
   notifyWebhook: string;
-  reportFormat: "html" | "pdf" | "docx";
-  reportIncludeInfo: boolean;
 }
 
 export const DEFAULT_SETTINGS: EngagementSettings = {
-  scanProfile: "balanced", scanDepth: 3, rateLimit: 20, threadCount: 5,
-  authType: "none", authValue: "", customHeaders: "", userAgent: "HexaCore/1.0 (authorized-scan)",
-  timeoutSec: 30, notifyOnCritical: true, notifyOnComplete: true, notifyWebhook: "",
-  reportFormat: "html", reportIncludeInfo: false,
+  notifyWebhook: "",
 };
 
 const SKEY = "hexacore_settings";
