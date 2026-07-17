@@ -26,6 +26,23 @@ The responsibility is yours.
 
 ---
 
+## 🧒 New to computers, terminals, or Linux? Start here.
+
+You do **not** need to know how to code to run this. Everything below is written for total
+beginners — every command is explained in plain English before you type it.
+
+If you'd rather follow an even more hand-held, step-by-step guide (it explains what "terminal" and
+"sudo" even mean, one line at a time), open **[RUN_LINUX.md](RUN_LINUX.md)** instead — it walks
+through the exact same steps below, just slower and with more explanation. Either doc gets you to
+the same place.
+
+Two words you'll see a lot:
+- **Terminal** — a black window where you type commands instead of clicking things. On Kali Linux,
+  press `Ctrl+Alt+T` to open one.
+- **Command** — a line of text you type into the terminal, then press `Enter` to run it.
+
+---
+
 ## What it does, in plain English
 
 1. **You add targets** — an IP, a domain, a URL, or a range — in the web console.
@@ -57,15 +74,24 @@ Don't have Kali? Install it free in VirtualBox/VMware from https://www.kali.org/
 
 ## Install & run — one command
 
-```bash
-# 1. Get the project onto your Kali machine
-git clone https://github.com/<your-username>/hexacore.git
-cd hexacore
+Open a terminal (`Ctrl+Alt+T` on Kali) and type these commands, one at a time, pressing `Enter`
+after each:
 
-# 2. Run it. That's the whole install.
+```bash
+# 1. Download the project onto your machine (this creates a folder named "Hexacore")
+git clone https://github.com/rj53466/Hexacore.git
+
+# 2. Step inside that folder
+cd Hexacore
+
+# 3. Give the installer permission to run
 chmod +x hexacore.sh
+
+# 4. Run it. This one command installs everything and starts the app.
 ./hexacore.sh
 ```
+
+That's it — four commands, copy-paste each one, done.
 
 The first run installs everything for you — Python libraries, the security tools, the local AI model
 (`qwen2.5:7b`), and it builds the web console — then starts the server. **This takes 15–30 minutes
@@ -166,11 +192,11 @@ on your machine.
 
 | Folder | What's inside |
 |---|---|
-| `api/` | The server + the safety layer (scope, gates, kill switch, audit). |
-| `tools/` | The tool adapters and the sandboxed executor. |
-| `agent/` | The scan runner, skill matching, and AI routing. |
+| `src/hexacore/` | The server + the safety layer (scope, gates, kill switch, audit). |
+| `src/hexacore_tools/` | The tool adapters and the sandboxed executor. |
+| `src/hexacore_agent/` | The scan runner, skill matching, and AI routing. |
 | `console/` | The web dashboard (React). |
-| `reporting/` | The report generator (HTML / PDF / Word). |
+| `src/hexacore_reporting/` | The report generator (HTML / PDF / Word). |
 | `Heart/` | The 636-skill security knowledge base. |
 | `Brain/` | Design documents (how and why it's built this way). |
 | `hexacore.sh` | The one-command installer/runner. |
@@ -180,7 +206,7 @@ on your machine.
 ## For developers
 
 ```bash
-python -m pytest -q                 # run the test suite (180 tests)
+python -m pytest -q                 # run the test suite (175 tests, 3 skip)
 make serve                          # API + WebSocket on :8000
 cd console && npm run dev           # console dev server on :5173
 ```
