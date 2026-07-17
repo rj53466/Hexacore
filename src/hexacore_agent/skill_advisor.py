@@ -16,7 +16,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -127,8 +129,15 @@ def advise(finding, sk: dict, generate: Optional[Callable[[str], str]]) -> tuple
 
 
 def enrich_with_skills(store, *, generate: Optional[Callable[[str], str]] = None,
-                       index_path: Optional[str | Path] = None) -> int:
-    """Attach skill-guided remediation/next-steps to each matched finding. Returns count enriched."""
+                       index_path: Optional[str | Path] = None, max_workers: int = 4) -> int:
+    """Attach skill-guided remediation/next-steps to each matched finding. Returns count enriched.
+
+    Findings that match the same skill and share a CWE/title (the same vuln found on N hosts) are
+    grouped and advised ONCE — the remediation text is technique-specific, not host-specific, so
+    N identical LLM calls bought nothing but N times the wait. The unique calls that remain are
+    fanned out across a small thread pool: `ollama_generate` is a blocking `urllib` call, so threads
+    (not asyncio) are what buys real concurrency here without an async rewrite of the whole module.
+    """
     index = load_index(index_path)
     if not index:
         return 0
@@ -142,42 +151,65 @@ def enrich_with_skills(store, *, generate: Optional[Callable[[str], str]] = None
     # ponytail: flat trip count, no reset/half-open; good enough for a single enrichment pass.
     LLM_FAILURE_LIMIT = 3
     failures = 0
+    lock = threading.Lock()
 
     def guarded_generate(prompt: str) -> str:
         nonlocal failures
         try:
             out = generate(prompt)
         except Exception:
-            failures += 1
+            with lock:
+                failures += 1
             raise
-        failures = 0
+        with lock:
+            failures = 0
         return out
 
-    enriched = 0
+    # Pass 1 (local, no network): match each unenriched finding to a skill and group by
+    # (skill, cwe-or-title) — a resumed run already skips findings that carry skill_ref.
+    groups: dict[tuple, dict] = {}
     for f in store.all():
-        try:
-            # A resumed run reuses the same store/findings from the prior pass -- without this,
-            # re-running enrichment would re-append "[Skill-guided] ..." remediation text onto
-            # findings that already have it.
-            if isinstance(f.evidence, dict) and "skill_ref" in f.evidence:
-                continue
-            sk = match_skill(f, index)
-            if not sk:
-                continue
-            active_generate = guarded_generate if (generate and failures < LLM_FAILURE_LIMIT) else None
-            rem, nxt = advise(f, sk, active_generate)
-            if isinstance(f.evidence, dict):
-                f.evidence.setdefault("skill_ref",
-                                      {"name": sk.get("name"), "path": sk.get("path"),
-                                       "mitre_attack": sk.get("mitre_attack", [])})
-                if nxt:
-                    f.evidence.setdefault("suggested_next_steps", nxt)
-            if rem:
-                prefix = "\n\n" if f.remediation else ""
-                f.remediation = f"{f.remediation}{prefix}[Skill-guided] {rem}"
-            enriched += 1
-        except Exception:
-            continue   # one bad finding never aborts the pass
+        if isinstance(f.evidence, dict) and "skill_ref" in f.evidence:
+            continue
+        sk = match_skill(f, index)
+        if not sk:
+            continue
+        key = (sk.get("name"), f.cwe or f.title)
+        groups.setdefault(key, {"sk": sk, "findings": []})["findings"].append(f)
+
+    # Pass 2 (network, parallel): one advise() call per unique group.
+    # ponytail: the failure-count check races harmlessly under concurrency — a few extra in-flight
+    # calls past LLM_FAILURE_LIMIT is an acceptable soft-breaker, not worth a stricter lock here.
+    def _work(item):
+        key, group = item
+        active = guarded_generate if (generate and failures < LLM_FAILURE_LIMIT) else None
+        return key, advise(group["findings"][0], group["sk"], active)
+
+    results: dict[tuple, tuple[str, str]] = {}
+    if groups:
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            for key, result in pool.map(_work, groups.items()):
+                results[key] = result
+
+    # Pass 3: apply each group's (possibly shared) result to every finding in it.
+    enriched = 0
+    for key, group in groups.items():
+        rem, nxt = results[key]
+        sk = group["sk"]
+        for f in group["findings"]:
+            try:
+                if isinstance(f.evidence, dict):
+                    f.evidence.setdefault("skill_ref",
+                                          {"name": sk.get("name"), "path": sk.get("path"),
+                                           "mitre_attack": sk.get("mitre_attack", [])})
+                    if nxt:
+                        f.evidence.setdefault("suggested_next_steps", nxt)
+                if rem:
+                    prefix = "\n\n" if f.remediation else ""
+                    f.remediation = f"{f.remediation}{prefix}[Skill-guided] {rem}"
+                enriched += 1
+            except Exception:
+                continue   # one bad finding never aborts the pass
     return enriched
 
 
@@ -265,4 +297,34 @@ if __name__ == "__main__":
     nxt = next_capabilities(store, idx, available={"enum.netexec", "enum.bloodhound"})
     assert nxt.get("enum.netexec") == "ntlm-relay", nxt
     assert "verify.web_sqli" not in nxt, "must not select an unavailable/unrelated capability"
+
+    # Dedup + parallel fan-out: 3 findings, 2 sharing the same (skill, CWE) — same vuln on two
+    # hosts plus one distinct finding — must cost 2 LLM calls, not 3, and all 3 still get enriched.
+    def make(title, cwe, asset):
+        f = _F()
+        f.title, f.cwe, f.affected_asset, f.evidence, f.remediation = title, cwe, asset, {}, ""
+        return f
+
+    dup_a = make("SMB signing not required", "CWE-287", "10.0.0.5")
+    dup_b = make("SMB signing not required", "CWE-287", "10.0.0.6")
+    other = make("Kerberoasting exposed", "CWE-522", "10.0.0.7")
+    call_count = {"n": 0}
+    call_lock = threading.Lock()
+
+    def counting_generate(prompt: str) -> str:
+        with call_lock:
+            call_count["n"] += 1
+        return json.dumps({"remediation": "fix it", "next_steps": "verify it"})
+
+    idx2 = idx + [{"name": "kerberoast", "mitre_attack": [], "tags": ["kerberoast"],
+                   "description": "Request/crack service ticket hashes.", "path": "does/not/exist.md"}]
+    multi_store = type("St", (), {"all": lambda self: [dup_a, dup_b, other]})()
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
+        json.dump({"skills": idx2}, tf)
+        tmp_path = tf.name
+    n = enrich_with_skills(multi_store, generate=counting_generate, index_path=tmp_path)
+    assert n == 3, f"expected all 3 findings enriched, got {n}"
+    assert call_count["n"] == 2, f"expected 2 LLM calls (deduped), got {call_count['n']}"
+    assert "fix it" in dup_a.remediation and "fix it" in dup_b.remediation and "fix it" in other.remediation
     print("skill_advisor self-check OK")

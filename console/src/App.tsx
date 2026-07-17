@@ -2,6 +2,7 @@ import { createContext, useContext, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { api, getToken, session, setToken } from "./api";
 import { Shell, Icon } from "./ui";
+import { syncToolStates } from "./tools";
 
 import HexacoreDashboard from "./pages/HexacoreDashboard";
 import ApprovalInbox from "./pages/ApprovalInbox";
@@ -21,7 +22,7 @@ function Login({ onDone }: { onDone: () => void }) {
 
   const submit = async () => {
     setErr(""); setBusy(true);
-    try { const r = await api.login(u.trim(), p.trim()); setToken(r.access_token); onDone(); }
+    try { const r = await api.login(u.trim(), p.trim()); setToken(r.access_token); syncToolStates(); onDone(); }
     catch (e) { setErr(String(e).replace("Error: ", "")); }
     finally { setBusy(false); }
   };

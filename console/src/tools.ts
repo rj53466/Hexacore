@@ -1,7 +1,7 @@
 // HexaCore tool arsenal — the real adapter registry (tools/hexacore_tools/adapters), surfaced to the UI.
 // Lifecycle state is client-side (localStorage) until a real /tools endpoint exists — see report.
 import { useSyncExternalStore } from "react";
-import { api } from "./api";
+import { api, getToken } from "./api";
 
 export interface Tool {
   id: string;
@@ -68,6 +68,7 @@ function commit(next: StateMap) { states = next; localStorage.setItem(KEY, JSON.
 function patch(id: string, p: Partial<ToolState>) { commit({ ...states, [id]: { ...states[id], ...p } }); }
 
 export async function syncToolStates() {
+  if (!getToken()) return; // not logged in yet — nothing to sync, and it'd just 401
   try {
     const status = await api.getToolStatus();
     const next = { ...states };

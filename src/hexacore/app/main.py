@@ -79,6 +79,26 @@ def create_app(state: AppState | None = None) -> FastAPI:
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
     )
 
+    from pathlib import Path
+    from fastapi import Request
+    from fastapi.responses import FileResponse
+
+    dist_dir = Path(__file__).resolve().parent.parent.parent.parent / "console" / "dist"
+
+    # `GET /engagements` is both a React Router page and a JSON API route — a direct browser
+    # navigation (refresh, bookmark, typed URL) has no way to reach the SPA catch-all below since
+    # this exact path is already registered. `Sec-Fetch-Mode: navigate` is the browser-native,
+    # non-spoofable-by-accident signal for "this is an address-bar/link page load" — it's `cors`
+    # for our own console's fetch() calls, and absent entirely for curl/TestClient/API clients, so
+    # non-browser callers still hit the real route and get a real 401 (see test_unauthenticated_is_401).
+    @app.middleware("http")
+    async def spa_route_collision_fallback(request: Request, call_next):
+        if (request.method == "GET" and request.url.path == "/engagements"
+                and request.headers.get("sec-fetch-mode") == "navigate"
+                and (dist_dir / "index.html").exists()):
+            return FileResponse(dist_dir / "index.html")
+        return await call_next(request)
+
     # RBAC: reads need viewer, mutations need operator (owner outranks both) — enforced per-route
     # via Depends(require_min_role(...)) on each endpoint below.
 
@@ -421,11 +441,8 @@ def create_app(state: AppState | None = None) -> FastAPI:
         finally:
             state.bus.unsubscribe(engagement_id, q)
 
-    from pathlib import Path
     from fastapi.staticfiles import StaticFiles
-    from fastapi.responses import FileResponse
 
-    dist_dir = Path(__file__).resolve().parent.parent.parent.parent / "console" / "dist"
     if dist_dir.exists() and dist_dir.is_dir():
         assets_dir = dist_dir / "assets"
         if assets_dir.exists():

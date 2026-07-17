@@ -2,6 +2,7 @@
 pyyaml
 fastapi
 uvicorn
+websockets       # WS protocol impl for uvicorn — the live scan feed silently can't handshake without it
 jinja2
 xhtml2pdf        # PDF from HTML, pure-Python (WeasyPrint needs native GTK libs — skipped)
 python-docx
