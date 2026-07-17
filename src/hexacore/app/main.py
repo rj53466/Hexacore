@@ -15,7 +15,7 @@ from hexacore.engagements import EngagementError
 from hexacore.loader import create_from_mapping
 from hexacore.safety.approval import ApprovalState, GateError
 
-from .auth import authenticate, create_token, decode_token, require_min_role, OIDC_DISCOVERY_URL, OIDC_CLIENT_ID
+from .auth import authenticate, create_token, decode_token, require_min_role
 from .schemas import ApprovalResolve, EngagementCreate, KillRequest, LoginRequest, ScheduleCreate, TenantConfigModel
 from .state import AppState
 
@@ -149,39 +149,6 @@ def create_app(state: AppState | None = None) -> FastAPI:
             raise HTTPException(status_code=401, detail="bad credentials")
         return {"access_token": create_token(user["username"], user["role"], user["tenant_id"]),
                 "token_type": "bearer", "role": user["role"]}
-
-    @app.get("/auth/sso/login")
-    async def sso_login():
-        if not OIDC_DISCOVERY_URL:
-            raise HTTPException(status_code=400, detail="SSO not configured")
-        # In a real app, you'd fetch the authorization_endpoint from the OIDC discovery URL,
-        # build the URL with client_id, redirect_uri, response_type=code, and state,
-        # and return a 302 Redirect.
-        # For MVP, we'll return the mock redirect URL.
-        from fastapi.responses import RedirectResponse
-        import httpx
-        try:
-            resp = httpx.get(OIDC_DISCOVERY_URL, timeout=5.0)
-            resp.raise_for_status()
-            auth_endpoint = resp.json().get("authorization_endpoint")
-            return RedirectResponse(f"{auth_endpoint}?client_id={OIDC_CLIENT_ID}&response_type=code&redirect_uri=http://localhost:8000/auth/sso/callback")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to fetch OIDC configuration: {e}")
-
-    @app.get("/auth/sso/callback")
-    async def sso_callback(code: str):
-        if not OIDC_DISCOVERY_URL:
-            raise HTTPException(status_code=400, detail="SSO not configured")
-        # In a real app, exchange code for tokens at the token_endpoint,
-        # validate the ID token, and extract claims.
-        # Here we mock the behavior for demonstration and return our internal token.
-        # We would decode the ID token to get role and tenant_id.
-        username = "sso-user"
-        role = "operator"
-        tenant_id = "tenant-a"
-        internal_token = create_token(username, role, tenant_id)
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse(f"http://localhost:5173/?token={internal_token}")
 
     @app.get("/tenant/config")
     async def get_tenant_config(user: dict = Depends(require_min_role("viewer"))) -> dict:

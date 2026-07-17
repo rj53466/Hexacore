@@ -54,57 +54,11 @@ def _seed_users() -> dict[str, dict]:
 _USERS = _seed_users()
 
 
-import httpx
-
-OIDC_DISCOVERY_URL = os.getenv("HEXACORE_OIDC_DISCOVERY_URL")
-OIDC_CLIENT_ID = os.getenv("HEXACORE_OIDC_CLIENT_ID")
-_jwks_client = None
-
-def _get_jwks():
-    global _jwks_client
-    if not _jwks_client and OIDC_DISCOVERY_URL:
-        # Fetch JWKS URI from discovery
-        try:
-            resp = httpx.get(OIDC_DISCOVERY_URL, timeout=5.0)
-            resp.raise_for_status()
-            jwks_uri = resp.json().get("jwks_uri")
-            if jwks_uri:
-                _jwks_client = httpx.get(jwks_uri).json()
-        except Exception as e:
-            print(f"Failed to fetch JWKS: {e}")
-    return _jwks_client
-
 def authenticate(username: str, password: str) -> dict | None:
-    if OIDC_DISCOVERY_URL:
-        # If OIDC is configured, password login is disabled for real tenants.
-        return None
     user = _USERS.get(username)
     if user and verify_password(password, user["password_hash"]):
         return user
     return None
-
-def verify_external_token(token: str) -> dict | None:
-    """Verify a token from an external OIDC provider (Auth0, Okta, etc.)"""
-    jwks = _get_jwks()
-    if not jwks:
-        return None
-    try:
-        # Real implementation would use jwt.decode with the RSA key from JWKS.
-        # For simplicity in this implementation without PyJWT's RSA algorithms:
-        unverified_header = jwt.get_unverified_header(token)
-        unverified_claims = jwt.get_unverified_claims(token)
-        # Verify audience and issuer
-        if unverified_claims.get("aud") != OIDC_CLIENT_ID:
-            return None
-        # We assume the external token provides 'role' and 'tenant_id' in custom claims
-        # or we map groups to roles here.
-        return {
-            "sub": unverified_claims.get("sub"),
-            "role": unverified_claims.get("https://hexacore.io/role", "viewer"),
-            "tenant_id": unverified_claims.get("https://hexacore.io/tenant_id", "default")
-        }
-    except Exception:
-        return None
 
 
 def create_token(username: str, role: str, tenant_id: str) -> str:
