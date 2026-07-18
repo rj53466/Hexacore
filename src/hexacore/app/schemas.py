@@ -71,24 +71,3 @@ class ScheduleCreate(BaseModel):
 
 class TenantConfigModel(BaseModel):
     alert_webhook: Optional[str] = None
-
-class DockerRunnerModel(BaseModel):
-    image: str = "hexacore/kali-tools:latest"
-    network: str = "hexacore_toolnet"
-    docker_bin: str = "docker"
-    runtime: Optional[str] = None
-
-
-class VMRunnerModel(BaseModel):
-    host: str = ""
-    user: str = "kali"
-    port: int = 22
-    key_path: Optional[str] = None
-    password: Optional[str] = None
-    connect_timeout: int = 10
-
-
-class RunnerConfigModel(BaseModel):
-    backend: str = "dryrun"
-    docker: DockerRunnerModel = Field(default_factory=DockerRunnerModel)
-    vm: VMRunnerModel = Field(default_factory=VMRunnerModel)
